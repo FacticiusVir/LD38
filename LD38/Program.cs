@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using LD38.Stages;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LD38
 {
@@ -10,13 +11,17 @@ namespace LD38
                                 .AddOptions()
                                 .AddGameService<IUpdateLoopService, UpdateLoopService>()
                                 .AddGameService<GlfwService>()
+                                .AddGameService<VulkanDeviceService>()
                                 .Configure<GlfwOptions>(options => options.Title = "A Small World")
                                 .BuildServiceProvider();
 
             var game = ActivatorUtilities.CreateInstance<Game>(provider);
             var updateLoop = (UpdateLoopService)provider.GetRequiredService<IUpdateLoopService>();
+            var vulkanService = provider.GetRequiredService<VulkanDeviceService>();
 
             game.Initialise();
+
+            vulkanService.CreateStage<ClearStage>();
 
             game.Start();
 
