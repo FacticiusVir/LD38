@@ -6,12 +6,15 @@ namespace LD38
 {
     public struct Vertex
     {
-        public Vertex(vec2 position)
+        public Vertex(vec3 position, vec3 normal)
         {
             this.Position = position;
+            this.Normal = normal;
         }
 
-        public vec2 Position;
+        public vec3 Position;
+
+        public vec3 Normal;
 
         public static VertexInputBindingDescription GetBindingDescription()
         {
@@ -27,13 +30,20 @@ namespace LD38
         {
             return new VertexInputAttributeDescription[]
             {
-                    new VertexInputAttributeDescription
-                    {
-                        Binding = 0,
-                        Location = 0,
-                        Format = Format.R32G32SFloat,
-                        Offset = (uint)Marshal.OffsetOf<Vertex>("Position")
-                    }
+                new VertexInputAttributeDescription
+                {
+                    Binding = 0,
+                    Location = 0,
+                    Format = Format.R32G32B32SFloat,
+                    Offset = (uint)Marshal.OffsetOf<Vertex>("Position")
+                },
+                new VertexInputAttributeDescription
+                {
+                    Binding = 0,
+                    Location = 1,
+                    Format = Format.R32G32B32SFloat,
+                    Offset = (uint)Marshal.OffsetOf<Vertex>("Normal")
+                }
             };
         }
     }

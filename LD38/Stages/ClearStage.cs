@@ -1,18 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SharpVk;
+﻿using SharpVk;
 
 namespace LD38.Stages
 {
     public class ClearStage
         : RenderStage
     {
-        public override void Bind(CommandBuffer buffer, Extent2D targetExtent)
+        public override void Bind(Device device, RenderPass renderPass, CommandBuffer commandBuffer, Extent2D targetExtent)
         {
-            buffer.ClearAttachments(
+            commandBuffer.ClearAttachments(
                     new ClearAttachment
                     {
                         AspectMask = ImageAspectFlags.Color,

@@ -22,6 +22,7 @@ namespace LD38
             game.Initialise();
 
             vulkanService.CreateStage<ClearStage>();
+            vulkanService.CreateStage<QuadStage>();
 
             game.Start();
 

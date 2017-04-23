@@ -44,6 +44,7 @@ namespace LD38
         private bool isCommandBufferStale;
 
         private readonly List<RenderStage> renderStages = new List<RenderStage>();
+        private BufferManager bufferManager;
 
         public VulkanDeviceService(IUpdateLoopService updateLoop, GlfwService glfwService)
         {
@@ -68,9 +69,12 @@ namespace LD38
             this.CreateCommandPool();
             this.CreateSemaphores();
 
-            foreach(var stage in this.renderStages)
+            var queueFamilies = FindQueueFamilies(this.physicalDevice);
+            this.bufferManager = new BufferManager(this.physicalDevice, this.device, this.transferQueue, queueFamilies.TransferFamily.Value);
+
+            foreach (var stage in this.renderStages)
             {
-                stage.Initialise(this.device);
+                stage.Initialise(this.device, this.bufferManager);
             }
 
             this.isCommandBufferStale = true;
@@ -85,25 +89,28 @@ namespace LD38
                 this.RecreateSwapChain();
             }
 
-            if(this.isCommandBufferStale)
+            if (this.isCommandBufferStale)
             {
                 this.CreateCommandBuffers();
 
                 this.isCommandBufferStale = false;
             }
 
+            foreach (var stage in this.renderStages)
+            {
+                stage.Update();
+            }
+
             uint nextImage = this.swapChain.AcquireNextImage(uint.MaxValue, this.imageAvailableSemaphore, null);
 
-            this.graphicsQueue.Submit(new SubmitInfo[]
-            {
+            this.graphicsQueue.Submit(
                 new SubmitInfo
                 {
                     CommandBuffers = new [] { this.commandBuffers[nextImage] },
                     SignalSemaphores = new [] { this.renderFinishedSemaphore },
                     WaitDestinationStageMask = new [] { PipelineStageFlags.ColorAttachmentOutput },
                     WaitSemaphores = new [] { this.imageAvailableSemaphore }
-                }
-            }, null);
+                }, null);
 
             this.presentQueue.Present(new PresentInfo
             {
@@ -129,13 +136,13 @@ namespace LD38
         }
 
         public T CreateStage<T>()
-            where T: RenderStage, new()
+            where T : RenderStage, new()
         {
             var result = new T();
 
             if (this.device != null)
             {
-                result.Initialise(device);
+                result.Initialise(device, this.bufferManager);
             }
 
             this.renderStages.Add(result);
@@ -152,6 +159,8 @@ namespace LD38
             var oldSwapChain = this.swapChain;
 
             this.CreateSwapChain();
+            this.CreateRenderPass();
+            this.CreateFrameBuffers();
 
             oldSwapChain.Dispose();
 
@@ -383,13 +392,13 @@ namespace LD38
                     }
                 }, SubpassContents.Inline);
 
-                foreach(var renderStage in this.renderStages)
+                foreach (var renderStage in this.renderStages)
                 {
-                    renderStage.Bind(commandBuffer, this.swapChainExtent);
+                    renderStage.Bind(this.device, this.renderPass, commandBuffer, this.swapChainExtent);
                 }
 
                 commandBuffer.EndRenderPass();
-                
+
                 commandBuffer.End();
             }
         }
@@ -407,7 +416,7 @@ namespace LD38
 
             return true;
         }
-        
+
         private ImageView CreateImageView(Image image, Format format)
         {
             return device.CreateImageView(new ImageViewCreateInfo

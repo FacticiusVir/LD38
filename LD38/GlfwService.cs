@@ -55,7 +55,10 @@ namespace LD38
             Glfw3.glfwInit();
 
             this.WindowHandle = Glfw3.glfwCreateWindow(1280, 720, this.options.Title, IntPtr.Zero, IntPtr.Zero);
+
             this.windowSizeChanged = this.OnWindowSizeChanged;
+            Glfw3.glfwSetWindowSizeCallback(this.WindowHandle, this.windowSizeChanged);
+
             this.game = game;
         }
 
@@ -63,6 +66,8 @@ namespace LD38
         {
             this.WindowWidth = width;
             this.WindowHeight = height;
+
+            this.SignalResize();
         }
 
         public override void Start()

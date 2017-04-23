@@ -4,10 +4,14 @@ namespace LD38
 {
     public abstract class RenderStage
     {
-        public virtual void Initialise(Device device)
+        public virtual void Initialise(Device device, BufferManager bufferManager)
         {
         }
 
-        public abstract void Bind(CommandBuffer buffer, Extent2D targetExtent);
+        public abstract void Bind(Device device, RenderPass renderPass, CommandBuffer commandBuffer, Extent2D targetExtent);
+
+        public virtual void Update()
+        {
+        }
     }
 }
