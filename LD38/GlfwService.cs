@@ -54,6 +54,7 @@ namespace LD38
         {
             Glfw3.glfwInit();
 
+            Glfw3.glfwWindowHint(0x00022001, 0);
             this.WindowHandle = Glfw3.glfwCreateWindow(1280, 720, this.options.Title, IntPtr.Zero, IntPtr.Zero);
 
             this.windowSizeChanged = this.OnWindowSizeChanged;

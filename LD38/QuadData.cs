@@ -37,10 +37,14 @@ namespace LD38
                 GeometryProvider.Subdivide(vectorList, indexList, true);
             }
 
+            var random = new Random();
+
             /// normalize vectors to "inflate" the icosahedron into a sphere.
             for (var i = 0; i < vectorList.Count; i++)
             {
-                vectorList[i] = vectorList[i].Normalized;
+                float factor = ((float)random.NextDouble() - 0.5f) / 10f + 1f;
+
+                vectorList[i] = vectorList[i].Normalized * factor;
             }
 
             for (int index = 0; index < indexList.Count; index += 3)
@@ -63,10 +67,9 @@ namespace LD38
     public static class GeometryProvider
     {
 
-        private static int GetMidpointIndex(Dictionary<string, int> midpointIndices, List<vec3> vertices, int i0, int i1)
+        private static int GetMidpointIndex(Dictionary<(int, int), int> midpointIndices, List<vec3> vertices, int i0, int i1)
         {
-
-            var edgeKey = string.Format("{0}_{1}", Math.Min(i0, i1), Math.Max(i0, i1));
+            var edgeKey = (Math.Min(i0, i1), Math.Max(i0, i1));
 
             var midpointIndex = -1;
 
@@ -103,7 +106,7 @@ namespace LD38
         /// <param name="indices"></param>
         public static void Subdivide(List<vec3> vectors, List<int> indices, bool removeSourceTriangles)
         {
-            var midpointIndices = new Dictionary<string, int>();
+            var midpointIndices = new Dictionary<(int, int), int>();
 
             var newIndices = new List<int>(indices.Count * 4);
 

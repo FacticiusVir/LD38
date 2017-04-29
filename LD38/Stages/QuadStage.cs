@@ -168,7 +168,7 @@ namespace LD38.Stages
                         RasterizerDiscardEnable = false,
                         PolygonMode = PolygonMode.Fill,
                         LineWidth = 1,
-                        CullMode = CullModeFlags.Back,
+                        CullMode = CullModeFlags.None,
                         FrontFace = FrontFace.CounterClockwise,
                         DepthBiasEnable = false
                     },
@@ -201,6 +201,10 @@ namespace LD38.Stages
                         LogicOp = LogicOp.Copy,
                         BlendConstants = new float[] {0,0,0,0}
                     },
+                    DepthStencilState = new PipelineDepthStencilStateCreateInfo
+                    {
+                        DepthTestEnable = true
+                    },
                     Stages = new[]
                     {
                         new PipelineShaderStageCreateInfo
@@ -232,7 +236,7 @@ namespace LD38.Stages
 
         public override void Update()
         {
-            double rotationTime = 10.0;
+            double rotationTime = 30.0;
 
             double rotation = ((Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency) % rotationTime) / rotationTime;
             
@@ -240,8 +244,10 @@ namespace LD38.Stages
             {
                 World = mat4.RotateY((float)Math.PI * 2 * (float)rotation),
                 View = mat4.LookAt(new vec3(0, 0, -3f), vec3.Zero, vec3.UnitY),
-                Projection = mat4.Perspective((float)Math.PI / 4f, this.aspectRatio, 0.1f, 10f)
+                Projection = mat4.Perspective((float)Math.PI / 3f, this.aspectRatio, 0.1f, 10f)
             };
+
+            ubo.InvTransWorld = (ubo.World).Inverse.Transposed;
 
             //ubo.Projection[1, 1] *= -1;
 
@@ -265,6 +271,7 @@ namespace LD38.Stages
             public mat4 World;
             public mat4 View;
             public mat4 Projection;
+            public mat4 InvTransWorld;
         };
     }
 }
