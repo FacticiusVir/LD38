@@ -50,6 +50,13 @@ namespace LD38
             return new VulkanBuffer(this, buffer, memory);
         }
 
+        public VulkanImage CreateImage(uint width, uint height, Format format, ImageTiling imageTiling, ImageUsageFlags usage, MemoryPropertyFlags properties)
+        {
+            this.CreateImage(width, height, format, imageTiling, usage, properties, out var image, out var memory);
+
+            return new VulkanImage(this, image, memory, format);
+        }
+
         private void CreateBuffer(ulong size, BufferUsageFlags usage, MemoryPropertyFlags properties, out Buffer buffer, out DeviceMemory bufferMemory)
         {
             buffer = device.CreateBuffer(new BufferCreateInfo
@@ -114,7 +121,7 @@ namespace LD38
 
             this.CopyBuffer(this.stagingBuffer, buffer, dataOffset + dataSize);
         }
-        
+
 
         internal void CheckStagingBufferSize(uint dataSize, uint dataOffset)
         {
@@ -164,7 +171,7 @@ namespace LD38
             this.EndSingleTimeCommand(transferBuffers);
         }
 
-        private void TransitionImageLayout(Image image, Format format, ImageLayout oldLayout, ImageLayout newLayout)
+        internal void TransitionImageLayout(Image image, Format format, ImageLayout oldLayout, ImageLayout newLayout)
         {
             var commandBuffer = this.BeginSingleTimeCommand();
 
@@ -177,7 +184,9 @@ namespace LD38
                 Image = image,
                 SubresourceRange = new ImageSubresourceRange
                 {
-                    AspectMask = ImageAspectFlags.Color,
+                    AspectMask = newLayout == ImageLayout.DepthStencilAttachmentOptimal
+                                    ? ImageAspectFlags.Depth
+                                    : ImageAspectFlags.Color,
                     BaseMipLevel = 0,
                     LevelCount = 1,
                     BaseArrayLayer = 0,
@@ -199,6 +208,11 @@ namespace LD38
             {
                 barrier.SourceAccessMask = AccessFlags.TransferWrite;
                 barrier.DestinationAccessMask = AccessFlags.ShaderRead;
+            }
+            else if (oldLayout == ImageLayout.Undefined && newLayout == ImageLayout.DepthStencilAttachmentOptimal)
+            {
+                barrier.SourceAccessMask = AccessFlags.None;
+                barrier.DestinationAccessMask = AccessFlags.DepthStencilAttachmentRead | AccessFlags.DepthStencilAttachmentWrite;
             }
             else
             {
@@ -242,7 +256,7 @@ namespace LD38
             this.transientCommandPool.FreeCommandBuffers(transferBuffers);
         }
 
-        public void CreateImage(uint width, uint height, Format format, ImageTiling imageTiling, ImageUsageFlags usage, MemoryPropertyFlags properties, out Image image, out DeviceMemory imageMemory)
+        private void CreateImage(uint width, uint height, Format format, ImageTiling imageTiling, ImageUsageFlags usage, MemoryPropertyFlags properties, out Image image, out DeviceMemory imageMemory)
         {
             image = this.device.CreateImage(new ImageCreateInfo
             {
@@ -274,6 +288,5 @@ namespace LD38
 
             image.BindMemory(imageMemory, 0);
         }
-
     }
 }

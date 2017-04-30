@@ -39,9 +39,9 @@ namespace LD38.Stages
                 CodeSize = fragCodeSize
             });
 
-            SphereData.Get(2, out var vertices, out var indices);
+            SphereData.Get(3, out var vertices, out var indices);
 
-            var vertexData = vertices.Select(x => new Vertex(x.Item1, x.Item2)).ToArray();
+            var vertexData = vertices.Select(x => new Vertex(x.Item1, x.Item2, x.Item3)).ToArray();
 
             indexCount = indices.Count();
 
@@ -203,7 +203,13 @@ namespace LD38.Stages
                     },
                     DepthStencilState = new PipelineDepthStencilStateCreateInfo
                     {
-                        DepthTestEnable = true
+                        DepthTestEnable = true,
+                        DepthWriteEnable = true,
+                        DepthCompareOp = CompareOp.Less,
+                        DepthBoundsTestEnable = false,
+                        MinDepthBounds = 0,
+                        MaxDepthBounds = 1,
+                        StencilTestEnable = false
                     },
                     Stages = new[]
                     {

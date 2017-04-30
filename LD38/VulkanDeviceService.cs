@@ -33,6 +33,8 @@ namespace LD38
         private Framebuffer[] swapChainFrameBuffers;
         private CommandPool commandPool;
         private CommandBuffer[] commandBuffers;
+        private VulkanImage depthImage;
+        private ImageView depthImageView;
 
         private Semaphore screenRenderSemaphore;
         private Semaphore imageAvailableSemaphore;
@@ -63,14 +65,16 @@ namespace LD38
             this.CreateSurface();
             this.PickPhysicalDevice();
             this.CreateLogicalDevice();
-            this.CreateSwapChain();
-            this.CreateRenderPass();
-            this.CreateFrameBuffers();
-            this.CreateCommandPool();
-            this.CreateSemaphores();
 
             var queueFamilies = FindQueueFamilies(this.physicalDevice);
             this.bufferManager = new BufferManager(this.physicalDevice, this.device, this.transferQueue, queueFamilies.TransferFamily.Value);
+
+            this.CreateSwapChain();
+            this.CreateCommandPool();
+            this.CreateDepthResources();
+            this.CreateRenderPass();
+            this.CreateFrameBuffers();
+            this.CreateSemaphores();
 
             foreach (var stage in this.renderStages)
             {
@@ -106,10 +110,10 @@ namespace LD38
             this.graphicsQueue.Submit(
                 new SubmitInfo
                 {
-                    CommandBuffers = new [] { this.commandBuffers[nextImage] },
-                    SignalSemaphores = new [] { this.renderFinishedSemaphore },
-                    WaitDestinationStageMask = new [] { PipelineStageFlags.ColorAttachmentOutput },
-                    WaitSemaphores = new [] { this.imageAvailableSemaphore }
+                    CommandBuffers = new[] { this.commandBuffers[nextImage] },
+                    SignalSemaphores = new[] { this.renderFinishedSemaphore },
+                    WaitDestinationStageMask = new[] { PipelineStageFlags.ColorAttachmentOutput },
+                    WaitSemaphores = new[] { this.imageAvailableSemaphore }
                 }, null);
 
             this.presentQueue.Present(new PresentInfo
@@ -159,6 +163,7 @@ namespace LD38
             var oldSwapChain = this.swapChain;
 
             this.CreateSwapChain();
+            this.CreateDepthResources();
             this.CreateRenderPass();
             this.CreateFrameBuffers();
 
@@ -249,6 +254,18 @@ namespace LD38
                         InitialLayout = ImageLayout.Undefined,
                         FinalLayout = ImageLayout.PresentSource
                     },
+                    new AttachmentDescription
+                    {
+                        Format = this.depthImage.Format,
+                        Samples = SampleCountFlags.SampleCount1,
+                        LoadOp = AttachmentLoadOp.Clear,
+                        StoreOp = AttachmentStoreOp.DontCare,
+                        StencilLoadOp = AttachmentLoadOp.DontCare,
+                        StencilStoreOp = AttachmentStoreOp.DontCare,
+                        InitialLayout = ImageLayout.Undefined,
+                        FinalLayout = ImageLayout.DepthStencilAttachmentOptimal
+
+                    }
                 },
                 Subpasses = new[]
                 {
@@ -256,7 +273,8 @@ namespace LD38
                     {
                         DepthStencilAttachment = new AttachmentReference
                         {
-                            Attachment = Constants.AttachmentUnused
+                            Attachment = 1,
+                            Layout = ImageLayout.DepthStencilAttachmentOptimal
                         },
                         PipelineBindPoint = PipelineBindPoint.Graphics,
                         ColorAttachments = new []
@@ -337,7 +355,7 @@ namespace LD38
 
             this.swapChainImages = this.swapChain.GetImages();
 
-            this.swapChainImageViews = swapChainImages.Select(image => this.CreateImageView(image, this.swapChainFormat)).ToArray();
+            this.swapChainImageViews = swapChainImages.Select(image => this.CreateImageView(image, this.swapChainFormat, ImageAspectFlags.Color)).ToArray();
         }
 
         private void CreateFrameBuffers()
@@ -345,7 +363,7 @@ namespace LD38
             this.swapChainFrameBuffers = this.swapChainImageViews.Select(imageView => this.device.CreateFramebuffer(new FramebufferCreateInfo
             {
                 RenderPass = this.renderPass,
-                Attachments = new[] { imageView },
+                Attachments = new[] { imageView, this.depthImageView },
                 Layers = 1,
                 Height = this.swapChainExtent.Height,
                 Width = this.swapChainExtent.Width
@@ -389,6 +407,11 @@ namespace LD38
                     {
                         Offset = new Offset2D(),
                         Extent = this.swapChainExtent
+                    },
+                    ClearValues = new ClearValue[]
+                    {
+                        new ClearColorValue(0f, 0f, 0f, 1f),
+                        new ClearDepthStencilValue(1f, 0)
                     }
                 }, SubpassContents.Inline);
 
@@ -403,11 +426,56 @@ namespace LD38
             }
         }
 
+        private void CreateDepthResources()
+        {
+            Format depthFormat = this.FindDepthFormat();
+
+            this.depthImage = this.bufferManager.CreateImage(this.swapChainExtent.Width,
+                                                                this.swapChainExtent.Height,
+                                                                depthFormat,
+                                                                ImageTiling.Optimal,
+                                                                ImageUsageFlags.DepthStencilAttachment,
+                                                                MemoryPropertyFlags.DeviceLocal);
+
+            this.depthImageView = this.CreateImageView(this.depthImage.Image, depthFormat, ImageAspectFlags.Depth);
+
+            this.depthImage.TransitionImageLayout(ImageLayout.Undefined, ImageLayout.DepthStencilAttachmentOptimal);
+        }
+
         private void CreateSemaphores()
         {
             this.screenRenderSemaphore = device.CreateSemaphore(new SemaphoreCreateInfo());
             this.imageAvailableSemaphore = device.CreateSemaphore(new SemaphoreCreateInfo());
             this.renderFinishedSemaphore = device.CreateSemaphore(new SemaphoreCreateInfo());
+        }
+
+        private Format FindDepthFormat()
+        {
+            return this.FindSupportedFormat(new[] { Format.D32SFloat, Format.D32SFloatS8UInt, Format.D24UNormS8UInt }, ImageTiling.Optimal, FormatFeatureFlags.DepthStencilAttachment);
+        }
+
+        private static bool HasStencilComponent(Format format)
+        {
+            return format == Format.D32SFloatS8UInt || format == Format.D24UNormS8UInt;
+        }
+
+        private Format FindSupportedFormat(IEnumerable<Format> candidates, ImageTiling tiling, FormatFeatureFlags features)
+        {
+            foreach (var format in candidates)
+            {
+                var props = this.physicalDevice.GetFormatProperties(format);
+
+                if (tiling == ImageTiling.Linear && props.LinearTilingFeatures.HasFlag(features))
+                {
+                    return format;
+                }
+                else if (tiling == ImageTiling.Optimal && props.OptimalTilingFeatures.HasFlag(features))
+                {
+                    return format;
+                }
+            }
+
+            throw new Exception("failed to find supported format!");
         }
 
         private Bool32 DebugReport(DebugReportFlags flags, DebugReportObjectType objectType, ulong @object, Size location, int messageCode, string layerPrefix, string message, IntPtr userData)
@@ -417,7 +485,7 @@ namespace LD38
             return true;
         }
 
-        private ImageView CreateImageView(Image image, Format format)
+        private ImageView CreateImageView(Image image, Format format, ImageAspectFlags aspectFlags)
         {
             return device.CreateImageView(new ImageViewCreateInfo
             {
@@ -428,7 +496,7 @@ namespace LD38
                 ViewType = ImageViewType.ImageView2d,
                 SubresourceRange = new ImageSubresourceRange
                 {
-                    AspectMask = ImageAspectFlags.Color,
+                    AspectMask = aspectFlags,
                     BaseMipLevel = 0,
                     LevelCount = 1,
                     BaseArrayLayer = 0,

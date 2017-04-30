@@ -10,12 +10,12 @@ namespace LD38
 
         public static readonly Vertex[] Vertices =
         {
-            new Vertex(new vec3(0, 0, 0), new vec3(0, 0, 1)),
-            new Vertex(new vec3(1, 0, 0), new vec3(0, 0, 1)),
-            new Vertex(new vec3(1, 1, 0), new vec3(0, 0, 1)),
-            new Vertex(new vec3(1, 1, 0), new vec3(0, 0, 1)),
-            new Vertex(new vec3(0, 1, 0), new vec3(0, 0, 1)),
-            new Vertex(new vec3(0, 0, 0), new vec3(0, 0, 1))
+            new Vertex(new vec3(0, 0, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1)),
+            new Vertex(new vec3(1, 0, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1)),
+            new Vertex(new vec3(1, 1, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1)),
+            new Vertex(new vec3(1, 1, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1)),
+            new Vertex(new vec3(0, 1, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1)),
+            new Vertex(new vec3(0, 0, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1))
         };
 
         public static readonly ushort[] Indices = { 0, 1, 2, 2, 4, 0 };
@@ -23,12 +23,12 @@ namespace LD38
 
     public static class SphereData
     {
-        public static void Get(int detailLevel, out (vec3, vec3)[] vertices, out ushort[] indices)
+        public static void Get(int detailLevel, out (vec3, vec3, vec4)[] vertices, out ushort[] indices)
         {
             var vectorList = new List<vec3>();
             var indexList = new List<int>();
 
-            var vertexList = new List<(vec3, vec3)>();
+            var vertexList = new List<(vec3, vec3, vec4)>();
 
             GeometryProvider.Icosahedron(vectorList, indexList);
 
@@ -39,21 +39,34 @@ namespace LD38
 
             var random = new Random();
 
-            /// normalize vectors to "inflate" the icosahedron into a sphere.
             for (var i = 0; i < vectorList.Count; i++)
             {
-                float factor = ((float)random.NextDouble() - 0.5f) / 10f + 1f;
+                float factor = ((float)random.NextDouble() - 0.5f) / 10f + 1;
 
                 vectorList[i] = vectorList[i].Normalized * factor;
             }
 
             for (int index = 0; index < indexList.Count; index += 3)
             {
-                vec3 normal = (vectorList[indexList[index]] + vectorList[indexList[index + 1]] + vectorList[indexList[index + 2]]).Normalized;
+                vec3 v1 = vectorList[indexList[index]];
+                vec3 v2 = vectorList[indexList[index + 1]];
+                vec3 v3 = vectorList[indexList[index + 2]];
 
-                vertexList.Add((vectorList[indexList[index]], normal));
-                vertexList.Add((vectorList[indexList[index + 1]], normal));
-                vertexList.Add((vectorList[indexList[index + 2]], normal));
+                vec3 normal = vec3.Cross(v1 - v2, v3 - v1).Normalized;
+
+                vec4 colour = new vec4(0, 1, 0, 1);
+
+                float maxHeight = Math.Max(v1.Length, v2.Length);
+                maxHeight = Math.Max(maxHeight, v3.Length);
+
+                if (maxHeight > 1.049f)
+                {
+                    colour = new vec4(1, 1, 1, 1);
+                }
+
+                vertexList.Add((v1, normal, colour));
+                vertexList.Add((v2, normal, colour));
+                vertexList.Add((v3, normal, colour));
             }
 
             vertices = vertexList.ToArray();
