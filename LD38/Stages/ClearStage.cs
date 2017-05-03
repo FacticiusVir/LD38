@@ -11,7 +11,7 @@ namespace LD38.Stages
                     new ClearAttachment
                     {
                         AspectMask = ImageAspectFlags.Color,
-                        ClearValue = new ClearColorValue(0.5f, 0f, 0.5f, 1f),
+                        ClearValue = new ClearColorValue(0f, 0f, 0f, 1f),
                         ColorAttachment = 0
                     },
                     new ClearRect

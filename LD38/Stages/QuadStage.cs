@@ -39,9 +39,9 @@ namespace LD38.Stages
                 CodeSize = fragCodeSize
             });
 
-            SphereData.Get(3, out var vertices, out var indices);
+            SphereData.Get(5, out var vertices, out var indices);
 
-            var vertexData = vertices.Select(x => new Vertex(x.Item1, x.Item2, x.Item3)).ToArray();
+            var vertexData = vertices.Select(x => new Vertex(x.Item1, x.Item2, x.Item3, x.Item4)).ToArray();
 
             indexCount = indices.Count();
 
@@ -76,7 +76,7 @@ namespace LD38.Stages
                     {
                         Binding = 0,
                         DescriptorType = DescriptorType.UniformBuffer,
-                        StageFlags = ShaderStageFlags.Vertex,
+                        StageFlags = ShaderStageFlags.AllGraphics,
                         DescriptorCount = 1
                     }
                 }
@@ -168,7 +168,7 @@ namespace LD38.Stages
                         RasterizerDiscardEnable = false,
                         PolygonMode = PolygonMode.Fill,
                         LineWidth = 1,
-                        CullMode = CullModeFlags.None,
+                        CullMode = CullModeFlags.Back,
                         FrontFace = FrontFace.CounterClockwise,
                         DepthBiasEnable = false
                     },

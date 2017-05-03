@@ -1,4 +1,5 @@
 ﻿using GlmSharp;
+using LibNoise.Primitive;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,12 +11,12 @@ namespace LD38
 
         public static readonly Vertex[] Vertices =
         {
-            new Vertex(new vec3(0, 0, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1)),
-            new Vertex(new vec3(1, 0, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1)),
-            new Vertex(new vec3(1, 1, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1)),
-            new Vertex(new vec3(1, 1, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1)),
-            new Vertex(new vec3(0, 1, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1)),
-            new Vertex(new vec3(0, 0, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1))
+            new Vertex(new vec3(0, 0, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1), new vec4(0, 0, 0, 1)),
+            new Vertex(new vec3(1, 0, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1), new vec4(0, 0, 0, 1)),
+            new Vertex(new vec3(1, 1, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1), new vec4(0, 0, 0, 1)),
+            new Vertex(new vec3(1, 1, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1), new vec4(0, 0, 0, 1)),
+            new Vertex(new vec3(0, 1, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1), new vec4(0, 0, 0, 1)),
+            new Vertex(new vec3(0, 0, 0), new vec3(0, 0, 1), new vec4(1, 1, 1, 1), new vec4(0, 0, 0, 1))
         };
 
         public static readonly ushort[] Indices = { 0, 1, 2, 2, 4, 0 };
@@ -23,12 +24,12 @@ namespace LD38
 
     public static class SphereData
     {
-        public static void Get(int detailLevel, out (vec3, vec3, vec4)[] vertices, out ushort[] indices)
+        public static void Get(int detailLevel, out (vec3, vec3, vec4, vec4)[] vertices, out ushort[] indices)
         {
             var vectorList = new List<vec3>();
             var indexList = new List<int>();
 
-            var vertexList = new List<(vec3, vec3, vec4)>();
+            var vertexList = new List<(vec3, vec3, vec4, vec4)>();
 
             GeometryProvider.Icosahedron(vectorList, indexList);
 
@@ -38,12 +39,24 @@ namespace LD38
             }
 
             var random = new Random();
+            var perlin = new ImprovedPerlin(random.Next(), LibNoise.NoiseQuality.Standard);
 
             for (var i = 0; i < vectorList.Count; i++)
             {
-                float factor = ((float)random.NextDouble() - 0.5f) / 10f + 1;
+                vec3 value = vectorList[i].Normalized;
 
-                vectorList[i] = vectorList[i].Normalized * factor;
+                float multiplier = 1.5f;
+                float octaveSize = 3;
+
+                float factor = perlin.GetValue(value.x * multiplier, value.y * multiplier, value.z * multiplier);
+                factor += perlin.GetValue(value.x * multiplier * octaveSize, value.y * multiplier * octaveSize, value.z * multiplier * octaveSize) / octaveSize;
+                octaveSize *= octaveSize * octaveSize;
+                factor += perlin.GetValue(value.x * multiplier * octaveSize, value.y * multiplier * octaveSize, value.z * multiplier * octaveSize) / octaveSize;
+
+                factor /= 5;
+                factor += 1;
+
+                vectorList[i] = value * factor;
             }
 
             for (int index = 0; index < indexList.Count; index += 3)
@@ -52,21 +65,65 @@ namespace LD38
                 vec3 v2 = vectorList[indexList[index + 1]];
                 vec3 v3 = vectorList[indexList[index + 2]];
 
-                vec3 normal = vec3.Cross(v1 - v2, v3 - v1).Normalized;
-
                 vec4 colour = new vec4(0, 1, 0, 1);
+                vec4? v1Colour = null;
+                vec4? v2Colour = null;
+                vec4? v3Colour = null;
+
+                vec4 specular = new vec4(0, 0, 0, 1);
+                vec4? v1Specular = null;
+                vec4? v2Specular = null;
+                vec4? v3Specular = null;
 
                 float maxHeight = Math.Max(v1.Length, v2.Length);
                 maxHeight = Math.Max(maxHeight, v3.Length);
 
-                if (maxHeight > 1.049f)
+                float minHeight = Math.Min(v1.Length, v2.Length);
+                minHeight = Math.Min(minHeight, v3.Length);
+
+                float seaLevel = 1.025f;
+
+                void ApplySeaLevel(ref vec3 vector, ref vec4? vectorDiffuse, ref vec4? vectorSpecular)
+                {
+                    if (vector.Length < seaLevel)
+                    {
+                        float factor = 100;
+                        float length = seaLevel + (perlin.GetValue(vector.x * factor, vector.y * factor, vector.z * factor) * 0.0025f);
+
+                        vector = vector.Normalized * length;
+                        //vectorDiffuse = new vec4(0, 0, 1, 1);
+                        //vectorSpecular = new vec4(1, 1, 1, 1);
+                    }
+                };
+
+                if (maxHeight > 1.12f)
                 {
                     colour = new vec4(1, 1, 1, 1);
+                    specular = new vec4(1, 1, 1, 1);
+                }
+                else if (maxHeight < seaLevel)
+                {
+                    colour = new vec4(0, 0, 1, 1);
+                    specular = new vec4(1, 1, 1, 1);
+
+                    ApplySeaLevel(ref v1, ref v1Colour, ref v1Specular);
+                    ApplySeaLevel(ref v2, ref v2Colour, ref v2Specular);
+                    ApplySeaLevel(ref v3, ref v3Colour, ref v3Specular);
+                }
+                else if (minHeight < seaLevel)
+                {
+                    colour = new vec4(1, 1, 0, 1);
+
+                    ApplySeaLevel(ref v1, ref v1Colour, ref v1Specular);
+                    ApplySeaLevel(ref v2, ref v2Colour, ref v2Specular);
+                    ApplySeaLevel(ref v3, ref v3Colour, ref v3Specular);
                 }
 
-                vertexList.Add((v1, normal, colour));
-                vertexList.Add((v2, normal, colour));
-                vertexList.Add((v3, normal, colour));
+                vec3 normal = vec3.Cross(v1 - v2, v3 - v1).Normalized;
+
+                vertexList.Add((v1, normal, v1Colour ?? colour, v1Specular ?? specular));
+                vertexList.Add((v2, normal, v2Colour ?? colour, v2Specular ?? specular));
+                vertexList.Add((v3, normal, v3Colour ?? colour, v3Specular ?? specular));
             }
 
             vertices = vertexList.ToArray();
