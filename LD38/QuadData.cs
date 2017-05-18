@@ -24,7 +24,7 @@ namespace LD38
 
     public static class SphereData
     {
-        public static void Get(int detailLevel, out (vec3, vec3, vec4, vec4)[] vertices, out ushort[] indices)
+        public static void Get(int detailLevel, out (vec3, vec3, vec4, vec4)[] vertices, out uint[] indices)
         {
             var vectorList = new List<vec3>();
             var indexList = new List<int>();
@@ -127,7 +127,7 @@ namespace LD38
             }
 
             vertices = vertexList.ToArray();
-            indices = Enumerable.Range(0, vertexList.Count).Select(x => (ushort)x).ToArray();
+            indices = Enumerable.Range(0, vertexList.Count).Select(x => (uint)x).ToArray();
 
             //vertices = vectorList.Select(x => (x, x)).ToArray();
             //indices = indexList.Select(x => (ushort)x).ToArray();
@@ -150,14 +150,16 @@ namespace LD38
 
                 var midpoint = (v0 + v1) / 2f;
 
-                if (vertices.Contains(midpoint))
-                    midpointIndex = vertices.IndexOf(midpoint);
-                else
-                {
+                //if (vertices.Contains(midpoint))
+                //{
+                //    midpointIndex = vertices.IndexOf(midpoint);
+                //}
+                //else
+                //{
                     midpointIndex = vertices.Count;
                     vertices.Add(midpoint);
                     midpointIndices.Add(edgeKey, midpointIndex);
-                }
+                //}
             }
 
 

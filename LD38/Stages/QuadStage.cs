@@ -39,7 +39,7 @@ namespace LD38.Stages
                 CodeSize = fragCodeSize
             });
 
-            SphereData.Get(5, out var vertices, out var indices);
+            SphereData.Get(6, out var vertices, out var indices);
 
             var vertexData = vertices.Select(x => new Vertex(x.Item1, x.Item2, x.Item3, x.Item4)).ToArray();
 
@@ -49,7 +49,7 @@ namespace LD38.Stages
 
             this.vertexBuffer.Update(vertexData);
 
-            this.indexBuffer = bufferManager.CreateBuffer(MemUtil.SizeOf<ushort>() * (uint)indices.Length, BufferUsageFlags.TransferDestination | BufferUsageFlags.IndexBuffer, MemoryPropertyFlags.DeviceLocal);
+            this.indexBuffer = bufferManager.CreateBuffer(MemUtil.SizeOf<uint>() * (uint)indices.Length, BufferUsageFlags.TransferDestination | BufferUsageFlags.IndexBuffer, MemoryPropertyFlags.DeviceLocal);
 
             this.indexBuffer.Update(indices);
 
@@ -233,7 +233,7 @@ namespace LD38.Stages
 
             commandBuffer.BindVertexBuffers(0, this.vertexBuffer.Buffer, (DeviceSize)0);
 
-            commandBuffer.BindIndexBuffer(this.indexBuffer.Buffer, 0, IndexType.UInt16);
+            commandBuffer.BindIndexBuffer(this.indexBuffer.Buffer, 0, IndexType.UInt32);
 
             commandBuffer.BindDescriptorSets(PipelineBindPoint.Graphics, pipelineLayout, 0, descriptorSet, null);
 
